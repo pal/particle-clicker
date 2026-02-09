@@ -62,7 +62,7 @@
       UI.showUpdateValue("#update-funding", grant);
       var sum = 0;
       for (var i = 0; i < workers.length; i++) {
-        sum += workers[i].state.hired * workers[i].state.rate;
+        sum += workers[i].getTotal();
       }
       if (sum > 0) {
         lab.acquireData(sum);
@@ -86,7 +86,7 @@
       var cost = item.research(lab);
       if (cost > 0) {
         UI.showUpdateValue("#update-data", -cost);
-        UI.showUpdateValue("#update-reputation", item.state.reputation);
+        UI.showUpdateValue("#update-reputation", item._lastRepEarned);
       }
     };
     this.showInfo = function(r) {

@@ -1,6 +1,9 @@
 var GameObjects = (function() {
   'use strict';
   var GLOBAL_VISIBILITY_THRESHOLD = 0.5;
+  var COST_SCALING_CAP = 1.02;
+  var COST_SCALING_THRESHOLD = 50;
+  var REWARD_SCALING_BONUS = 1.0;
 
   /** @class GameObject
    * Base class for all objects in the game. This works together with the
@@ -105,8 +108,19 @@ var GameObjects = (function() {
     return lab.state.data >= this.state.cost;
   };
 
+  Research.prototype.getReputation = function() {
+    var rep = this.state.reputation;
+    if (this.state.level >= COST_SCALING_THRESHOLD) {
+      rep *= 1 + REWARD_SCALING_BONUS *
+          (this.state.level - COST_SCALING_THRESHOLD + 1);
+    }
+    return rep;
+  };
+
   Research.prototype.research = function(lab) {
-    if (lab && lab.research(this.state.cost, this.state.reputation)) {
+    var rep = this.getReputation();
+    if (lab && lab.research(this.state.cost, rep)) {
+      this._lastRepEarned = rep;
       this.state.level++;
       if (this.state.info_levels.length > 0 &&
           this.state.level === this.state.info_levels[0]) {
@@ -114,7 +128,11 @@ var GameObjects = (function() {
         this.state.info_levels.splice(0, 1);
       }
       var old_cost = this.state.cost;
-      this.state.cost = Math.floor(this.state.cost * this.cost_increase);
+      var ci = this.cost_increase;
+      if (this.state.level >= COST_SCALING_THRESHOLD) {
+        ci = 1 + Math.min(ci - 1, COST_SCALING_CAP - 1);
+      }
+      this.state.cost = Math.floor(this.state.cost * ci);
       return old_cost;
     }
     return -1;
@@ -159,14 +177,20 @@ var GameObjects = (function() {
     if (lab && lab.buy(this.state.cost)) {
       this.state.hired++;
       var cost = this.state.cost;
-      this.state.cost = Math.floor(cost * this.cost_increase);
+      var ci = this.cost_increase;
+      if (this.state.hired >= COST_SCALING_THRESHOLD) {
+        ci = 1 + Math.min(ci - 1, COST_SCALING_CAP - 1);
+      }
+      this.state.cost = Math.floor(cost * ci);
       return cost;
     }
     return -1;  // not enough money
   };
 
-  Worker.prototype.getTotal =
-      function() { return this.state.hired * this.state.rate; };
+  Worker.prototype.getTotal = function() {
+    var bonus = 1 + REWARD_SCALING_BONUS * Math.max(0, this.state.hired - COST_SCALING_THRESHOLD);
+    return this.state.hired * this.state.rate * bonus;
+  };
 
   /** @class Upgrade
    */
